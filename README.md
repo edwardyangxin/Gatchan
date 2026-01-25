@@ -26,6 +26,12 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 - Rotate tokens by revoking them at the provider and updating the env vars.
 - Avoid logging secrets or full webhook payloads.
 
+## Development workflow
+- Select an issue from the Project board Backlog.
+- Move the issue to In progress when you start work.
+- Open a PR and move the issue to In review.
+- Merge the PR and move the issue to Done.
+
 ## Notes
 - This repo is currently a scaffold. Implementation plan will be added next.
 
