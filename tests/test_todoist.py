@@ -10,13 +10,13 @@ def test_create_subtask_success() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["Authorization"] == "Bearer test-token"
         body = json.loads(request.content.decode("utf-8"))
-        assert body == {"content": "hello", "parent_id": "123"}
+        assert body == {"content": "hello", "parent_id": "123", "description": "meta here"}
         return httpx.Response(200, json={"id": "1", "content": "hello", "parent_id": "123"})
 
     transport = httpx.MockTransport(handler)
     client = httpx.Client(transport=transport)
 
-    result = create_subtask("hello", "123", "test-token", client=client)
+    result = create_subtask("hello", "123", "test-token", description="meta here", client=client)
 
     assert result["id"] == "1"
     assert result["content"] == "hello"

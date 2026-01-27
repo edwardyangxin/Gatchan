@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any, Optional
 
 import httpx
 
 TODOIST_TASKS_URL = "https://api.todoist.com/rest/v2/tasks"
 DEFAULT_TODO_LATER_DUE_STRING = "every day"
+TODAY_DUE_STRING = "today"
 
 
 @dataclass(frozen=True)
@@ -43,6 +45,32 @@ def _request_json(response: httpx.Response, user_message: str) -> dict[str, Any]
     return data
 
 
+def _is_due_today(due: dict[str, Any] | None) -> bool:
+    if not due:
+        return False
+    if due_date := due.get("date"):
+        try:
+            return date.fromisoformat(due_date) == date.today()
+        except ValueError:
+            return False
+    if due_datetime := due.get("datetime"):
+        try:
+            cleaned = due_datetime.replace("Z", "+00:00")
+            return datetime.fromisoformat(cleaned).date() == date.today()
+        except ValueError:
+            return False
+    return False
+
+
+def _set_task_due_today(task_id: str, headers: dict[str, str], client: httpx.Client) -> None:
+    response = client.post(
+        f"{TODOIST_TASKS_URL}/{task_id}",
+        json={"due_string": TODAY_DUE_STRING},
+        headers=headers,
+    )
+    response.raise_for_status()
+
+
 def ensure_todo_later_task(
     task_name: str,
     api_token: str,
@@ -67,6 +95,8 @@ def ensure_todo_later_task(
                 if isinstance(task, dict) and task.get("content") == task_name:
                     task_id = task.get("id")
                     if task_id:
+                        if not _is_due_today(task.get("due")):
+                            _set_task_due_today(str(task_id), headers, client)
                         return str(task_id)
 
         payload = {"content": task_name.strip(), "due_string": DEFAULT_TODO_LATER_DUE_STRING}
@@ -90,11 +120,14 @@ def create_subtask(
     parent_id: str,
     api_token: str,
     *,
+    description: Optional[str] = None,
     client: Optional[httpx.Client] = None,
 ) -> dict[str, Any]:
     _validate_inputs(content, parent_id, api_token)
 
-    payload = {"content": content.strip(), "parent_id": parent_id}
+    payload: dict[str, Any] = {"content": content.strip(), "parent_id": parent_id}
+    if description:
+        payload["description"] = description.strip()
     headers = {"Authorization": f"Bearer {api_token}"}
 
     close_client = False
