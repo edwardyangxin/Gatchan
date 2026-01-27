@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.telegram_normalizer import (
+    DOCUMENT_ONLY_PROMPT,
     FORWARDED_EMPTY_PROMPT,
     IMAGE_ONLY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
@@ -275,3 +276,128 @@ def test_webhook_photo_getfile_failure_still_creates_task(
 
     assert response.status_code == 200
     assert "image_url=" not in captured["description"]
+
+
+def test_webhook_document_creates_task_with_file_url(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(file_id: str, api_token: str, *, client: Any = None) -> str:
+        captured["file_id"] = file_id
+        return "https://files.example.com/file.pdf"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["content"] = content
+        captured["description"] = description
+        return {"id": "child-doc"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 30,
+            "message": {
+                "message_id": 300,
+                "chat": {"id": 555, "type": "private"},
+                "caption": "pdf note",
+                "document": {"file_id": "doc-1", "file_name": "note.pdf"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["content"] == "pdf note"
+    assert captured["file_id"] == "doc-1"
+    assert "file_url=https://files.example.com/file.pdf" in captured["description"]
+
+
+def test_webhook_document_without_caption_uses_filename(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(file_id: str, api_token: str, *, client: Any = None) -> str:
+        return "https://files.example.com/file.pdf"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["content"] = content
+        return {"id": "child-doc"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 31,
+            "message": {
+                "message_id": 301,
+                "chat": {"id": 555, "type": "private"},
+                "document": {"file_id": "doc-2", "file_name": "note.pdf"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["content"] == "File from Telegram: note.pdf"
+
+
+def test_webhook_document_uses_default_prompt_without_filename(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(file_id: str, api_token: str, *, client: Any = None) -> str:
+        return "https://files.example.com/file.pdf"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["content"] = content
+        return {"id": "child-doc"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 32,
+            "message": {
+                "message_id": 302,
+                "chat": {"id": 555, "type": "private"},
+                "document": {"file_id": "doc-3"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["content"] == DOCUMENT_ONLY_PROMPT
