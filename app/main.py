@@ -66,6 +66,20 @@ def _todoist_description(update_id: int, message: Optional[TelegramMessage]) -> 
     return "meta: " + " ".join(parts)
 
 
+def _is_whitelisted(message: Optional[TelegramMessage], settings: Settings) -> bool:
+    allowed_users = settings.telegram_allowed_user_ids
+    allowed_chats = settings.telegram_allowed_chat_ids
+    if not allowed_users and not allowed_chats:
+        return True
+    if not message:
+        return False
+    chat_id = message.chat.id if message.chat else None
+    user_id = message.from_user.id if message.from_user else None
+    return (chat_id in allowed_chats if chat_id is not None else False) or (
+        user_id in allowed_users if user_id is not None else False
+    )
+
+
 @app.get("/health")
 def health() -> JSONResponse:
     return success_response({"status": "ok"})
@@ -83,6 +97,22 @@ def webhook(
 
     request_id = str(uuid4())
     message = update.message or update.edited_message or update.channel_post or update.edited_channel_post
+    if not _is_whitelisted(message, settings):
+        metadata = {
+            "request_id": request_id,
+            "update_id": update.update_id,
+            **_message_metadata(message),
+        }
+        logger.info("webhook_denied %s", json.dumps(metadata, separators=(",", ":"), sort_keys=True))
+        if settings.telegram_whitelist_reply:
+            _send_telegram_feedback(
+                message,
+                "未授权：请联系管理员开通权限。",
+                settings.telegram_bot_token.get_secret_value(),
+                request_id,
+            )
+        return success_response({"received": True, "authorized": False}, meta={"request_id": request_id})
+
     normalized_text = normalize_update(update)
     metadata = {
         "request_id": request_id,

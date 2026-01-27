@@ -50,6 +50,7 @@ Before any commit:
 
 ## Issue Workflow
 - Pick a backlog item from the Project board.
+- If an issue has the `to_plan` label, write a plan first and update the issue before implementation.
 - Move the item to In progress when work starts.
 - Open a PR and move the item to In review.
 - Merge the PR and move the item to Done.
@@ -61,7 +62,7 @@ Before any commit:
 ## GitHub Project Info
 - Project board: https://github.com/users/edwardyangxin/projects/1/
 - use skill to get issues info to work on
-- Auth: use `gh auth login` to authenticate
+- Auth: use `gh auth login` to authenticate (required for Project GraphQL updates)
 - Kanban: use `github-project-collab` skill to view Project items
 - Issues repo(s): Gatchan
 

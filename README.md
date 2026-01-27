@@ -13,10 +13,14 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 3. Set the main task name for "todo later", set `TODO_LATER_TASK_NAME` (created if missing).
 4. Set a webhook secret token, `TELEGRAM_WEBHOOK_SECRET`, and register it with Telegram.
 5. (Optional) For voice memos, set `TRANSCRIBE_PROVIDER` and a provider API key.
+6. (Optional) Set whitelist envs to restrict who can talk to the bot.
 
 ## Environment Variables
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET`
+- `TELEGRAM_ALLOWED_USER_IDS` (optional, comma-separated user IDs)
+- `TELEGRAM_ALLOWED_CHAT_IDS` (optional, comma-separated chat IDs; groups/channels are negative)
+- `TELEGRAM_WHITELIST_REPLY` (optional, `true` to reply on denial)
 - `TODOIST_API_TOKEN`
 - `TODO_LATER_TASK_NAME`
 - `TRANSCRIBE_PROVIDER` (optional, `openai` or `gemini`)
