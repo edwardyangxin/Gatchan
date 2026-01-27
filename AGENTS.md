@@ -53,6 +53,7 @@ Before any commit:
 - Move the item to In progress when work starts.
 - Open a PR and move the item to In review.
 - Merge the PR and move the item to Done.
+- For a completed issue, push branch, open PR, review (note: cannot approve own PR), merge, then move item to Done.
 
 ## GitHub Project Info
 - Project board: https://github.com/users/edwardyangxin/projects/1/
