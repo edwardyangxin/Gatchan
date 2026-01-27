@@ -54,6 +54,12 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 - Ensure `TELEGRAM_WEBHOOK_SECRET` matches the secret passed to Telegram when setting the webhook.
 - Webhook endpoint is `POST /webhook` with header `X-Telegram-Bot-Api-Secret-Token`.
 
+### Current Cloud Run deployment
+- Project ID: `home-inventory-483623` (display name: `home-inventory`)
+- Region: `us-central1`
+- Service: `gatchan-bot-webhook`
+- Health check: `GET /health`
+
 ### Cloud Run deploy (example)
 ```bash
 gcloud run deploy gatchan-webhook \
