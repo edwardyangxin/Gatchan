@@ -5,6 +5,7 @@ from typing import Optional
 from app.models import TelegramEntity, TelegramMessage, TelegramUpdate
 
 UNSUPPORTED_MESSAGE_PROMPT = "Unsupported message type. Please send text or a message with a caption."
+IMAGE_ONLY_PROMPT = "Image from Telegram"
 FORWARDED_EMPTY_PROMPT = "Forwarded message has no text. Please add a note."
 
 
@@ -21,6 +22,8 @@ def normalize_message(message: TelegramMessage) -> str:
         text = _normalized_text(message.caption, message.caption_entities)
     if text:
         return text
+    if message.photo:
+        return IMAGE_ONLY_PROMPT
     if _is_forwarded(message):
         return FORWARDED_EMPTY_PROMPT
     return UNSUPPORTED_MESSAGE_PROMPT

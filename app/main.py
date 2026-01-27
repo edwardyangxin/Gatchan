@@ -18,7 +18,7 @@ from app.telegram_normalizer import (
     normalize_update,
 )
 from app.todoist import TodoistServiceError, create_subtask, ensure_todo_later_task
-from app.telegram import send_telegram_message
+from app.telegram import get_telegram_file_url, send_telegram_message
 
 logger = logging.getLogger("gatchan")
 
@@ -64,6 +64,16 @@ def _todoist_description(update_id: int, message: Optional[TelegramMessage]) -> 
         f"date={metadata.get('date')}",
     ]
     return "meta: " + " ".join(parts)
+
+
+def _append_image_url(description: str, image_url: str) -> str:
+    return f"{description}\nimage_url={image_url}"
+
+
+def _extract_photo_file_id(message: Optional[TelegramMessage]) -> Optional[str]:
+    if not message or not message.photo:
+        return None
+    return message.photo[-1].file_id
 
 
 def _is_whitelisted(message: Optional[TelegramMessage], settings: Settings) -> bool:
@@ -125,6 +135,16 @@ def webhook(
     if normalized_text in {UNSUPPORTED_MESSAGE_PROMPT, FORWARDED_EMPTY_PROMPT}:
         content = f"[Unsupported] {normalized_text}"
     description = _todoist_description(update.update_id, message)
+    photo_file_id = _extract_photo_file_id(message)
+    if photo_file_id:
+        try:
+            image_url = get_telegram_file_url(
+                photo_file_id,
+                settings.telegram_bot_token.get_secret_value(),
+            )
+            description = _append_image_url(description, image_url)
+        except Exception as exc:  # pragma: no cover - non-critical attachment
+            logger.warning("telegram_file_fetch_failed", extra={"request_id": request_id, "error": str(exc)})
 
     try:
         parent_id = ensure_todo_later_task(

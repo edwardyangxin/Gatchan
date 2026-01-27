@@ -3,7 +3,11 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from app.telegram_normalizer import FORWARDED_EMPTY_PROMPT, UNSUPPORTED_MESSAGE_PROMPT
+from app.telegram_normalizer import (
+    FORWARDED_EMPTY_PROMPT,
+    IMAGE_ONLY_PROMPT,
+    UNSUPPORTED_MESSAGE_PROMPT,
+)
 
 
 def test_webhook_creates_todoist_subtask(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -138,3 +142,136 @@ def test_webhook_sends_failure_message(client: TestClient, monkeypatch: pytest.M
     assert response.status_code == 500
     assert len(messages) == 1
     assert messages[0].startswith("创建失败")
+
+
+def test_webhook_photo_creates_task_with_image_url(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(file_id: str, api_token: str, *, client: Any = None) -> str:
+        captured["file_id"] = file_id
+        return "https://files.example.com/photo.jpg"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["content"] = content
+        captured["description"] = description
+        return {"id": "child-photo"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 20,
+            "message": {
+                "message_id": 100,
+                "chat": {"id": 555, "type": "private"},
+                "caption": "photo note",
+                "photo": [
+                    {"file_id": "small", "width": 90, "height": 90},
+                    {"file_id": "large", "width": 320, "height": 320},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["content"] == "photo note"
+    assert captured["file_id"] == "large"
+    assert "image_url=https://files.example.com/photo.jpg" in captured["description"]
+
+
+def test_webhook_photo_without_caption_uses_default_title(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(file_id: str, api_token: str, *, client: Any = None) -> str:
+        return "https://files.example.com/photo.jpg"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["content"] = content
+        return {"id": "child-photo"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 21,
+            "message": {
+                "message_id": 101,
+                "chat": {"id": 555, "type": "private"},
+                "photo": [
+                    {"file_id": "only", "width": 320, "height": 320},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["content"] == IMAGE_ONLY_PROMPT
+
+
+def test_webhook_photo_getfile_failure_still_creates_task(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_get(*_: Any, **__: Any) -> str:
+        raise ValueError("boom")
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description: Any = None,
+        client: Any = None,
+    ) -> dict[str, Any]:
+        captured["description"] = description
+        return {"id": "child-photo"}
+
+    monkeypatch.setattr("app.main.get_telegram_file_url", fake_get)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+    response = client.post(
+        "/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "test-secret"},
+        json={
+            "update_id": 22,
+            "message": {
+                "message_id": 102,
+                "chat": {"id": 555, "type": "private"},
+                "caption": "photo note",
+                "photo": [
+                    {"file_id": "only", "width": 320, "height": 320},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert "image_url=" not in captured["description"]

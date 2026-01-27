@@ -26,6 +26,16 @@ class TelegramEntity(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
+class TelegramPhotoSize(BaseModel):
+    file_id: str
+    file_unique_id: Optional[str] = None
+    width: int
+    height: int
+    file_size: Optional[int] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
 class TelegramMessage(BaseModel):
     message_id: int
     date: Optional[int] = None
@@ -33,6 +43,7 @@ class TelegramMessage(BaseModel):
     from_user: Optional[TelegramUser] = Field(default=None, alias="from")
     text: Optional[str] = None
     caption: Optional[str] = None
+    photo: Optional[list[TelegramPhotoSize]] = None
     entities: Optional[list[TelegramEntity]] = None
     caption_entities: Optional[list[TelegramEntity]] = None
     forward_from: Optional[TelegramUser] = None

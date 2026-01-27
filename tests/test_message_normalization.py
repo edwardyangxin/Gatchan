@@ -2,6 +2,7 @@ import pytest
 
 from app.models import TelegramUpdate
 from app.telegram_normalizer import (
+    IMAGE_ONLY_PROMPT,
     FORWARDED_EMPTY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
     normalize_update,
@@ -75,3 +76,18 @@ def test_normalize_missing_message_prompts() -> None:
     update = TelegramUpdate(update_id=5)
 
     assert normalize_update(update) == UNSUPPORTED_MESSAGE_PROMPT
+
+
+def test_normalize_photo_only_message_uses_image_prompt() -> None:
+    update = TelegramUpdate(
+        update_id=6,
+        message={
+            "message_id": 104,
+            "photo": [
+                {"file_id": "small", "width": 90, "height": 90},
+                {"file_id": "large", "width": 320, "height": 320},
+            ],
+        },
+    )
+
+    assert normalize_update(update) == IMAGE_ONLY_PROMPT
