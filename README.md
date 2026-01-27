@@ -10,7 +10,7 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 ## Setup
 1. Create a Telegram Bot via BotFather, get `TELEGRAM_BOT_TOKEN`.
 2. Create a Todoist API token, get `TODOIST_API_TOKEN`.
-3. Identify the parent task ID for "todo later", set `TODO_LATER_TASK_ID`.
+3. Set the main task name for "todo later", set `TODO_LATER_TASK_NAME` (created if missing).
 4. Set a webhook secret token, `TELEGRAM_WEBHOOK_SECRET`, and register it with Telegram.
 5. (Optional) For voice memos, set `TRANSCRIBE_PROVIDER` and a provider API key.
 
@@ -18,7 +18,7 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_WEBHOOK_SECRET`
 - `TODOIST_API_TOKEN`
-- `TODO_LATER_TASK_ID`
+- `TODO_LATER_TASK_NAME`
 - `TRANSCRIBE_PROVIDER` (optional, `openai` or `gemini`)
 - `OPENAI_API_KEY` (if using OpenAI/Whisper)
 - `GEMINI_API_KEY` (if using Gemini)
@@ -56,7 +56,7 @@ gcloud run deploy gatchan-webhook \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,TODOIST_API_TOKEN=...,TODO_LATER_TASK_ID=...
+  --set-env-vars TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,TODOIST_API_TOKEN=...,TODO_LATER_TASK_NAME=...
 ```
 
 ### Telegram webhook registration (example)
