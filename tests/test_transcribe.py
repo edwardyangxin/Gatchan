@@ -40,3 +40,27 @@ def test_transcribe_audio_with_gemini_returns_text() -> None:
 def test_transcribe_audio_with_gemini_rejects_empty_audio() -> None:
     with pytest.raises(TranscriptionError):
         transcribe_audio_with_gemini(b"", "audio/ogg", "test-key")
+
+
+def test_transcribe_audio_with_gemini_strips_fillers() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "candidates": [
+                    {"content": {"parts": [{"text": "嗯 这个 um 测试 啊"}]}}
+                ]
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport)
+
+    result = transcribe_audio_with_gemini(
+        b"audio-bytes",
+        "audio/ogg",
+        "test-key",
+        client=client,
+    )
+
+    assert result == "这个 测试"
