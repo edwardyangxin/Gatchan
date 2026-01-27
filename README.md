@@ -11,10 +11,12 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 1. Create a Telegram Bot via BotFather, get `TELEGRAM_BOT_TOKEN`.
 2. Create a Todoist API token, get `TODOIST_API_TOKEN`.
 3. Identify the parent task ID for "todo later", set `TODO_LATER_TASK_ID`.
-4. (Optional) For voice memos, set `TRANSCRIBE_PROVIDER` and a provider API key.
+4. Set a webhook secret token, `TELEGRAM_WEBHOOK_SECRET`, and register it with Telegram.
+5. (Optional) For voice memos, set `TRANSCRIBE_PROVIDER` and a provider API key.
 
 ## Environment Variables
 - `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_WEBHOOK_SECRET`
 - `TODOIST_API_TOKEN`
 - `TODO_LATER_TASK_ID`
 - `TRANSCRIBE_PROVIDER` (optional, `openai` or `gemini`)
@@ -31,6 +33,38 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 - Move the issue to In progress when you start work.
 - Open a PR and move the issue to In review.
 - Merge the PR and move the issue to Done.
+
+## Local development
+1. Create a virtualenv and install dependencies:
+   - `python -m venv .venv`
+   - `source .venv/bin/activate`
+   - `pip install -r requirements.txt -r requirements-dev.txt`
+2. Copy `.env.example` to `.env` and fill in values.
+3. Run the server:
+   - `uvicorn app.main:app --reload --port 8000`
+4. Health check:
+   - `curl http://localhost:8000/health`
+
+## Cloud Run notes
+- Set the container port to `8000`.
+- Ensure `TELEGRAM_WEBHOOK_SECRET` matches the secret passed to Telegram when setting the webhook.
+- Webhook endpoint is `POST /webhook` with header `X-Telegram-Bot-Api-Secret-Token`.
+
+### Cloud Run deploy (example)
+```bash
+gcloud run deploy gatchan-webhook \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,TODOIST_API_TOKEN=...,TODO_LATER_TASK_ID=...
+```
+
+### Telegram webhook registration (example)
+```bash
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d "url=https://YOUR_CLOUD_RUN_URL/webhook" \
+  -d "secret_token=$TELEGRAM_WEBHOOK_SECRET"
+```
 
 ## Notes
 - This repo is currently a scaffold. Implementation plan will be added next.
