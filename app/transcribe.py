@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -38,7 +39,13 @@ def transcribe_audio_with_gemini(
         "contents": [
             {
                 "parts": [
-                    {"text": "Transcribe the speech in this audio. Respond with plain text only."},
+                    {
+                        "text": (
+                            "Transcribe the speech in this audio. "
+                            "Keep the original language and add basic punctuation. "
+                            "Respond with plain text only."
+                        )
+                    },
                     {"inline_data": {"mime_type": mime_type, "data": encoded}},
                 ]
             }
@@ -77,4 +84,18 @@ def transcribe_audio_with_gemini(
 
     if not transcript:
         raise TranscriptionError("Gemini response empty")
-    return transcript
+    return _normalize_transcript(transcript)
+
+
+def _normalize_transcript(text: str) -> str:
+    cleaned = text.strip()
+    if not cleaned:
+        return cleaned
+    filler_patterns = [
+        r"\b(?:um+|uh+|erm+|em+)\b",
+        r"[嗯啊呃额]+",
+    ]
+    for pattern in filler_patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned
