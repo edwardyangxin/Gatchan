@@ -17,7 +17,12 @@ from app.telegram_normalizer import (
     UNSUPPORTED_MESSAGE_PROMPT,
     normalize_update,
 )
-from app.todoist import TodoistServiceError, create_subtask, ensure_todo_later_task
+from app.todoist import (
+    TodoistServiceError,
+    cleanup_completed_subtasks,
+    create_subtask,
+    ensure_todo_later_task,
+)
 from app.telegram import get_telegram_file_url, send_telegram_message
 
 logger = logging.getLogger("gatchan")
@@ -151,6 +156,13 @@ def webhook(
             settings.todo_later_task_name,
             settings.todoist_api_token.get_secret_value(),
         )
+        try:
+            cleanup_completed_subtasks(
+                parent_id,
+                settings.todoist_api_token.get_secret_value(),
+            )
+        except TodoistServiceError as exc:
+            logger.warning("todoist_cleanup_failed", extra={"request_id": request_id, "error": exc.user_message})
         created = create_subtask(
             content,
             parent_id,
