@@ -51,3 +51,10 @@ def _stub_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
         return None
 
     monkeypatch.setattr("app.main.send_telegram_message", fake_send)
+
+
+@pytest.fixture(autouse=True)
+def _reset_dedupe_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    from collections import OrderedDict
+
+    monkeypatch.setattr("app.main._dedupe_store", OrderedDict())

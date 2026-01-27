@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from typing import Optional
 from uuid import uuid4
@@ -36,6 +38,9 @@ from app.telegram import download_telegram_file, get_telegram_file_url, send_tel
 from app.transcribe import TranscriptionError, transcribe_audio_with_gemini
 
 logger = logging.getLogger("gatchan")
+DEDUPE_TTL_SECONDS = 300
+DEDUPE_MAX_ITEMS = 1000
+_dedupe_store: "OrderedDict[int, float]" = OrderedDict()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -126,6 +131,25 @@ def _should_transcribe(message: Optional[TelegramMessage]) -> bool:
     return bool(message.voice or message.audio)
 
 
+def _is_duplicate_update(update_id: int, *, now: Optional[float] = None) -> bool:
+    timestamp = now if now is not None else time.time()
+    expired_before = timestamp - DEDUPE_TTL_SECONDS
+
+    while _dedupe_store:
+        _, stored_at = next(iter(_dedupe_store.items()))
+        if stored_at >= expired_before:
+            break
+        _dedupe_store.popitem(last=False)
+
+    if update_id in _dedupe_store:
+        return True
+
+    _dedupe_store[update_id] = timestamp
+    if len(_dedupe_store) > DEDUPE_MAX_ITEMS:
+        _dedupe_store.popitem(last=False)
+    return False
+
+
 def _is_whitelisted(message: Optional[TelegramMessage], settings: Settings) -> bool:
     allowed_users = settings.telegram_allowed_user_ids
     allowed_chats = settings.telegram_allowed_chat_ids
@@ -172,6 +196,16 @@ def webhook(
                 request_id,
             )
         return success_response({"received": True, "authorized": False}, meta={"request_id": request_id})
+
+    if _is_duplicate_update(update.update_id):
+        logger.info(
+            "webhook_duplicate",
+            extra={"request_id": request_id, "update_id": update.update_id},
+        )
+        return success_response(
+            {"received": True, "duplicate": True},
+            meta={"request_id": request_id},
+        )
 
     audio_info = _extract_audio_info(message)
     transcript: Optional[str] = None
