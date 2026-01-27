@@ -10,11 +10,12 @@ from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
 from app.logging import configure_logging
-from app.models import TelegramMessage, TelegramUpdate, WebhookAck
+from app.models import TelegramAudio, TelegramMessage, TelegramUpdate, TelegramVoice, WebhookAck
 from app.responses import error_response, success_response
 from app.telegram_normalizer import (
     FORWARDED_EMPTY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
+    VOICE_ONLY_PROMPT,
     normalize_update,
 )
 from app.todoist import (
@@ -23,7 +24,8 @@ from app.todoist import (
     create_subtask,
     ensure_todo_later_task,
 )
-from app.telegram import get_telegram_file_url, send_telegram_message
+from app.telegram import download_telegram_file, get_telegram_file_url, send_telegram_message
+from app.transcribe import TranscriptionError, transcribe_audio_with_gemini
 
 logger = logging.getLogger("gatchan")
 
@@ -81,6 +83,28 @@ def _extract_photo_file_id(message: Optional[TelegramMessage]) -> Optional[str]:
     return message.photo[-1].file_id
 
 
+def _extract_audio_info(
+    message: Optional[TelegramMessage],
+) -> Optional[tuple[str, str]]:
+    if not message:
+        return None
+    voice: Optional[TelegramVoice] = message.voice
+    audio: Optional[TelegramAudio] = message.audio
+    if voice:
+        return voice.file_id, (voice.mime_type or "audio/ogg")
+    if audio:
+        return audio.file_id, (audio.mime_type or "audio/mpeg")
+    return None
+
+
+def _should_transcribe(message: Optional[TelegramMessage]) -> bool:
+    if not message:
+        return False
+    if message.text or message.caption:
+        return False
+    return bool(message.voice or message.audio)
+
+
 def _is_whitelisted(message: Optional[TelegramMessage], settings: Settings) -> bool:
     allowed_users = settings.telegram_allowed_user_ids
     allowed_chats = settings.telegram_allowed_chat_ids
@@ -128,7 +152,54 @@ def webhook(
             )
         return success_response({"received": True, "authorized": False}, meta={"request_id": request_id})
 
-    normalized_text = normalize_update(update)
+    audio_info = _extract_audio_info(message)
+    transcript: Optional[str] = None
+    if audio_info and _should_transcribe(message):
+        if settings.transcribe_provider != "gemini" or not settings.gemini_api_key:
+            _send_telegram_feedback(
+                message,
+                "转写失败：未配置转写服务。",
+                settings.telegram_bot_token.get_secret_value(),
+                request_id,
+            )
+            return success_response(
+                WebhookAck(received=True, normalized_text=VOICE_ONLY_PROMPT).model_dump(),
+                meta={"request_id": request_id},
+            )
+        file_id, mime_type = audio_info
+        try:
+            file_url = get_telegram_file_url(file_id, settings.telegram_bot_token.get_secret_value())
+            audio_bytes = download_telegram_file(file_url)
+            transcript = transcribe_audio_with_gemini(
+                audio_bytes,
+                mime_type,
+                settings.gemini_api_key.get_secret_value(),
+            )
+        except TranscriptionError as exc:
+            _send_telegram_feedback(
+                message,
+                f"转写失败：{exc.user_message}",
+                settings.telegram_bot_token.get_secret_value(),
+                request_id,
+            )
+            return success_response(
+                WebhookAck(received=True, normalized_text=VOICE_ONLY_PROMPT).model_dump(),
+                meta={"request_id": request_id},
+            )
+        except Exception as exc:  # pragma: no cover - safety net
+            logger.warning("transcription_failed", extra={"request_id": request_id, "error": str(exc)})
+            _send_telegram_feedback(
+                message,
+                "转写失败：服务不可用。",
+                settings.telegram_bot_token.get_secret_value(),
+                request_id,
+            )
+            return success_response(
+                WebhookAck(received=True, normalized_text=VOICE_ONLY_PROMPT).model_dump(),
+                meta={"request_id": request_id},
+            )
+
+    normalized_text = transcript or normalize_update(update)
     metadata = {
         "request_id": request_id,
         "update_id": update.update_id,

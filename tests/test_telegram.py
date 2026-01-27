@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from app.telegram import get_telegram_file_url, send_telegram_message
+from app.telegram import download_telegram_file, get_telegram_file_url, send_telegram_message
 
 
 def test_send_telegram_message_posts_payload() -> None:
@@ -46,3 +46,16 @@ def test_get_telegram_file_url_rejects_missing_result() -> None:
 
     with pytest.raises(ValueError):
         get_telegram_file_url("file-123", "test-token", client=client)
+
+
+def test_download_telegram_file_fetches_bytes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url == httpx.URL("https://files.example.com/voice.ogg")
+        return httpx.Response(200, content=b"audio-bytes")
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport)
+
+    data = download_telegram_file("https://files.example.com/voice.ogg", client=client)
+
+    assert data == b"audio-bytes"

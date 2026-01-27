@@ -36,6 +36,27 @@ class TelegramPhotoSize(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
 
+class TelegramVoice(BaseModel):
+    file_id: str
+    file_unique_id: Optional[str] = None
+    duration: Optional[int] = None
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class TelegramAudio(BaseModel):
+    file_id: str
+    file_unique_id: Optional[str] = None
+    duration: Optional[int] = None
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    file_name: Optional[str] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+
 class TelegramMessage(BaseModel):
     message_id: int
     date: Optional[int] = None
@@ -44,6 +65,8 @@ class TelegramMessage(BaseModel):
     text: Optional[str] = None
     caption: Optional[str] = None
     photo: Optional[list[TelegramPhotoSize]] = None
+    voice: Optional["TelegramVoice"] = None
+    audio: Optional["TelegramAudio"] = None
     entities: Optional[list[TelegramEntity]] = None
     caption_entities: Optional[list[TelegramEntity]] = None
     forward_from: Optional[TelegramUser] = None

@@ -3,6 +3,7 @@ import pytest
 from app.models import TelegramUpdate
 from app.telegram_normalizer import (
     IMAGE_ONLY_PROMPT,
+    VOICE_ONLY_PROMPT,
     FORWARDED_EMPTY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
     normalize_update,
@@ -91,3 +92,15 @@ def test_normalize_photo_only_message_uses_image_prompt() -> None:
     )
 
     assert normalize_update(update) == IMAGE_ONLY_PROMPT
+
+
+def test_normalize_voice_only_message_uses_voice_prompt() -> None:
+    update = TelegramUpdate(
+        update_id=7,
+        message={
+            "message_id": 105,
+            "voice": {"file_id": "voice-1", "duration": 2, "mime_type": "audio/ogg"},
+        },
+    )
+
+    assert normalize_update(update) == VOICE_ONLY_PROMPT

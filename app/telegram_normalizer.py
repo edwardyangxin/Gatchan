@@ -6,6 +6,7 @@ from app.models import TelegramEntity, TelegramMessage, TelegramUpdate
 
 UNSUPPORTED_MESSAGE_PROMPT = "Unsupported message type. Please send text or a message with a caption."
 IMAGE_ONLY_PROMPT = "Image from Telegram"
+VOICE_ONLY_PROMPT = "Voice memo from Telegram"
 FORWARDED_EMPTY_PROMPT = "Forwarded message has no text. Please add a note."
 
 
@@ -24,6 +25,8 @@ def normalize_message(message: TelegramMessage) -> str:
         return text
     if message.photo:
         return IMAGE_ONLY_PROMPT
+    if message.voice or message.audio:
+        return VOICE_ONLY_PROMPT
     if _is_forwarded(message):
         return FORWARDED_EMPTY_PROMPT
     return UNSUPPORTED_MESSAGE_PROMPT

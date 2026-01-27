@@ -18,6 +18,8 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("TELEGRAM_ALLOWED_USER_IDS", "[]")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "[]")
     monkeypatch.setenv("TELEGRAM_WHITELIST_REPLY", "false")
+    monkeypatch.setenv("TRANSCRIBE_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
     monkeypatch.setenv("TODOIST_API_TOKEN", "test-todoist-token")
     monkeypatch.setenv("TODO_LATER_TASK_NAME", "todo later")
     get_settings.cache_clear()
