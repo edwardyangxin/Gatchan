@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Iterable
+from typing import Iterable, Optional
 
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     todoist_api_token: SecretStr
     todo_later_task_name: str
     todoist_cleanup_days: int = 7
+    transcribe_provider: Optional[str] = None
+    gemini_api_key: Optional[SecretStr] = None
     telegram_allowed_user_ids: set[int] = set()
     telegram_allowed_chat_ids: set[int] = set()
     telegram_whitelist_reply: bool = False

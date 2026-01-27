@@ -44,6 +44,28 @@ def get_telegram_file_url(
     return f"https://api.telegram.org/file/bot{api_token}/{file_path}"
 
 
+def download_telegram_file(
+    file_url: str,
+    *,
+    client: Optional[httpx.Client] = None,
+) -> bytes:
+    if not file_url:
+        raise ValueError("Telegram file url is required")
+
+    close_client = False
+    if client is None:
+        client = httpx.Client(timeout=20.0)
+        close_client = True
+
+    try:
+        response = client.get(file_url)
+        response.raise_for_status()
+        return response.content
+    finally:
+        if close_client:
+            client.close()
+
+
 def send_telegram_message(
     chat_id: int,
     text: str,
