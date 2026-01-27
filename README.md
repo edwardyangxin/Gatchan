@@ -23,6 +23,7 @@ Telegram bot to capture notes (text, links, voice memos, shares) and create Todo
 - `TELEGRAM_WHITELIST_REPLY` (optional, `true` to reply on denial)
 - `TODOIST_API_TOKEN`
 - `TODO_LATER_TASK_NAME`
+- `TODOIST_CLEANUP_DAYS` (optional, default 7)
 - `TRANSCRIBE_PROVIDER` (optional, `openai` or `gemini`)
 - `OPENAI_API_KEY` (if using OpenAI/Whisper)
 - `GEMINI_API_KEY` (if using Gemini)

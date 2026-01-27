@@ -160,6 +160,7 @@ def webhook(
             cleanup_completed_subtasks(
                 parent_id,
                 settings.todoist_api_token.get_secret_value(),
+                older_than_days=settings.todoist_cleanup_days,
             )
         except TodoistServiceError as exc:
             logger.warning("todoist_cleanup_failed", extra={"request_id": request_id, "error": exc.user_message})

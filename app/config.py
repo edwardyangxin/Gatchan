@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     telegram_webhook_secret: SecretStr
     todoist_api_token: SecretStr
     todo_later_task_name: str
+    todoist_cleanup_days: int = 7
     telegram_allowed_user_ids: set[int] = set()
     telegram_allowed_chat_ids: set[int] = set()
     telegram_whitelist_reply: bool = False
