@@ -54,6 +54,13 @@ Before any commit:
 - Open a PR and move the item to In review.
 - Merge the PR and move the item to Done.
 
+## GitHub Project Info
+- Project board: https://github.com/users/edwardyangxin/projects/1/
+- use skill to get issues info to work on
+- Auth: use `gh auth login` to authenticate
+- Kanban: use `github-project-collab` skill to view Project items
+- Issues repo(s): Gatchan
+
 ## Patterns to Prefer
 - Service layer + repository pattern for data access.
 - API response wrappers with `success`, `data`, `error`, `meta`.
