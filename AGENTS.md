@@ -56,6 +56,7 @@ Before any commit:
 - For a completed issue, push branch, open PR, review (note: cannot approve own PR), merge, then move item to Done.
 - Do not start the next issue until the current issue has finished the full flow (push, PR, review/merge, move to Done).
 - If interrupted, stop and confirm the current issue's status before proceeding.
+- After finishing an issue, return to `main` and ensure local `main` is up to date with `origin/main` before starting the next issue.
 
 ## GitHub Project Info
 - Project board: https://github.com/users/edwardyangxin/projects/1/
