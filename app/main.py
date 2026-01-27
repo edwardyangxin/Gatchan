@@ -10,10 +10,18 @@ from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
 from app.logging import configure_logging
-from app.models import TelegramAudio, TelegramMessage, TelegramUpdate, TelegramVoice, WebhookAck
+from app.models import (
+    TelegramAudio,
+    TelegramDocument,
+    TelegramMessage,
+    TelegramUpdate,
+    TelegramVoice,
+    WebhookAck,
+)
 from app.responses import error_response, success_response
 from app.telegram_normalizer import (
     FORWARDED_EMPTY_PROMPT,
+    DOCUMENT_ONLY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
     VOICE_ONLY_PROMPT,
     normalize_update,
@@ -77,10 +85,23 @@ def _append_image_url(description: str, image_url: str) -> str:
     return f"{description}\nimage_url={image_url}"
 
 
+def _append_file_url(description: str, file_url: str) -> str:
+    return f"{description}\nfile_url={file_url}"
+
+
 def _extract_photo_file_id(message: Optional[TelegramMessage]) -> Optional[str]:
     if not message or not message.photo:
         return None
     return message.photo[-1].file_id
+
+
+def _extract_document_info(
+    message: Optional[TelegramMessage],
+) -> Optional[tuple[str, Optional[str]]]:
+    if not message or not message.document:
+        return None
+    document: TelegramDocument = message.document
+    return document.file_id, document.file_name
 
 
 def _extract_audio_info(
@@ -199,6 +220,15 @@ def webhook(
                 meta={"request_id": request_id},
             )
 
+    document_info = _extract_document_info(message)
+    document_url: Optional[str] = None
+    if document_info:
+        file_id, file_name = document_info
+        try:
+            document_url = get_telegram_file_url(file_id, settings.telegram_bot_token.get_secret_value())
+        except Exception as exc:  # pragma: no cover - non-critical attachment
+            logger.warning("telegram_document_fetch_failed", extra={"request_id": request_id, "error": str(exc)})
+
     normalized_text = transcript or normalize_update(update)
     metadata = {
         "request_id": request_id,
@@ -221,6 +251,12 @@ def webhook(
             description = _append_image_url(description, image_url)
         except Exception as exc:  # pragma: no cover - non-critical attachment
             logger.warning("telegram_file_fetch_failed", extra={"request_id": request_id, "error": str(exc)})
+    if document_url:
+        description = _append_file_url(description, document_url)
+        if normalized_text == DOCUMENT_ONLY_PROMPT and document_info:
+            _, file_name = document_info
+            if file_name:
+                content = f"File from Telegram: {file_name}"
 
     try:
         parent_id = ensure_todo_later_task(

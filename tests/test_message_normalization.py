@@ -3,6 +3,7 @@ import pytest
 from app.models import TelegramUpdate
 from app.telegram_normalizer import (
     IMAGE_ONLY_PROMPT,
+    DOCUMENT_ONLY_PROMPT,
     VOICE_ONLY_PROMPT,
     FORWARDED_EMPTY_PROMPT,
     UNSUPPORTED_MESSAGE_PROMPT,
@@ -104,3 +105,15 @@ def test_normalize_voice_only_message_uses_voice_prompt() -> None:
     )
 
     assert normalize_update(update) == VOICE_ONLY_PROMPT
+
+
+def test_normalize_document_only_message_uses_document_prompt() -> None:
+    update = TelegramUpdate(
+        update_id=8,
+        message={
+            "message_id": 106,
+            "document": {"file_id": "doc-1", "file_name": "note.pdf"},
+        },
+    )
+
+    assert normalize_update(update) == DOCUMENT_ONLY_PROMPT
