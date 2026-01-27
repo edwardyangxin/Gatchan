@@ -12,6 +12,13 @@ from app.config import Settings, get_settings
 from app.logging import configure_logging
 from app.models import TelegramMessage, TelegramUpdate, WebhookAck
 from app.responses import error_response, success_response
+from app.telegram_normalizer import (
+    FORWARDED_EMPTY_PROMPT,
+    UNSUPPORTED_MESSAGE_PROMPT,
+    normalize_update,
+)
+from app.todoist import TodoistServiceError, create_subtask, ensure_todo_later_task
+from app.telegram import send_telegram_message
 
 logger = logging.getLogger("gatchan")
 
@@ -47,6 +54,18 @@ def _message_metadata(message: Optional[TelegramMessage]) -> dict:
     }
 
 
+def _todoist_description(update_id: int, message: Optional[TelegramMessage]) -> str:
+    metadata = _message_metadata(message)
+    parts = [
+        f"update_id={update_id}",
+        f"message_id={metadata.get('message_id')}",
+        f"chat_id={metadata.get('chat_id')}",
+        f"from_id={metadata.get('from_id')}",
+        f"date={metadata.get('date')}",
+    ]
+    return "meta: " + " ".join(parts)
+
+
 @app.get("/health")
 def health() -> JSONResponse:
     return success_response({"status": "ok"})
@@ -64,6 +83,7 @@ def webhook(
 
     request_id = str(uuid4())
     message = update.message or update.edited_message or update.channel_post or update.edited_channel_post
+    normalized_text = normalize_update(update)
     metadata = {
         "request_id": request_id,
         "update_id": update.update_id,
@@ -71,4 +91,67 @@ def webhook(
     }
     logger.info("webhook_received %s", json.dumps(metadata, separators=(",", ":"), sort_keys=True))
 
-    return success_response(WebhookAck(received=True).model_dump(), meta={"request_id": request_id})
+    content = normalized_text
+    if normalized_text in {UNSUPPORTED_MESSAGE_PROMPT, FORWARDED_EMPTY_PROMPT}:
+        content = f"[Unsupported] {normalized_text}"
+    description = _todoist_description(update.update_id, message)
+
+    try:
+        parent_id = ensure_todo_later_task(
+            settings.todo_later_task_name,
+            settings.todoist_api_token.get_secret_value(),
+        )
+        created = create_subtask(
+            content,
+            parent_id,
+            settings.todoist_api_token.get_secret_value(),
+            description=description,
+        )
+    except TodoistServiceError as exc:
+        logger.warning("todoist_failed", extra={"request_id": request_id, "error": exc.user_message})
+        _send_telegram_feedback(
+            message,
+            f"创建失败：{exc.user_message}",
+            settings.telegram_bot_token.get_secret_value(),
+            request_id,
+        )
+        return error_response(exc.user_message, status_code=502, meta={"request_id": request_id})
+    except Exception as exc:  # pragma: no cover - safety net
+        logger.error("todoist_unexpected", exc_info=exc, extra={"request_id": request_id})
+        _send_telegram_feedback(
+            message,
+            "创建失败：Todoist unavailable",
+            settings.telegram_bot_token.get_secret_value(),
+            request_id,
+        )
+        return error_response("Todoist unavailable", status_code=500, meta={"request_id": request_id})
+
+    task_url = created.get("url") if isinstance(created, dict) else None
+    completion_text = "已创建 Todoist 任务。"
+    if task_url:
+        completion_text = f"已创建 Todoist 任务：{task_url}"
+    _send_telegram_feedback(
+        message,
+        completion_text,
+        settings.telegram_bot_token.get_secret_value(),
+        request_id,
+    )
+
+    return success_response(
+        WebhookAck(received=True, normalized_text=normalized_text).model_dump(),
+        meta={"request_id": request_id},
+    )
+
+
+def _send_telegram_feedback(
+    message: Optional[TelegramMessage],
+    text: str,
+    api_token: str,
+    request_id: str,
+) -> None:
+    if not message or not message.chat:
+        return
+    try:
+        send_telegram_message(message.chat.id, text, api_token)
+    except Exception as exc:  # pragma: no cover - non-critical feedback
+        logger.warning("telegram_feedback_failed", extra={"request_id": request_id, "error": str(exc)})

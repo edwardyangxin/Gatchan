@@ -19,3 +19,30 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("TODO_LATER_TASK_NAME", "todo later")
     get_settings.cache_clear()
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _stub_todoist(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_ensure(task_name: str, api_token: str, *, client=None) -> str:
+        return "parent-test"
+
+    def fake_create(
+        content: str,
+        parent_id: str,
+        api_token: str,
+        *,
+        description=None,
+        client=None,
+    ) -> dict:
+        return {"id": "child-test"}
+
+    monkeypatch.setattr("app.main.ensure_todo_later_task", fake_ensure)
+    monkeypatch.setattr("app.main.create_subtask", fake_create)
+
+
+@pytest.fixture(autouse=True)
+def _stub_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_send(chat_id: int, text: str, api_token: str, *, client=None) -> None:
+        return None
+
+    monkeypatch.setattr("app.main.send_telegram_message", fake_send)
