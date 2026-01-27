@@ -15,6 +15,9 @@ from app.main import app
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-telegram-token")
     monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "test-secret")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_USER_IDS", "[]")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "[]")
+    monkeypatch.setenv("TELEGRAM_WHITELIST_REPLY", "false")
     monkeypatch.setenv("TODOIST_API_TOKEN", "test-todoist-token")
     monkeypatch.setenv("TODO_LATER_TASK_NAME", "todo later")
     get_settings.cache_clear()

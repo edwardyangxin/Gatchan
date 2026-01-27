@@ -3,7 +3,7 @@
 Telegram bot to capture notes (text, links, voice memos, shares) and create Todoist subtasks under a main "todo later" task.
 
 ## MVP Scope
-- Inputs: text messages, links, forwarded/share text, voice memos
+- Inputs: text messages, links, forwarded/share text, voice memos, images (URL stored in task description)
 - Output: subtask created under a fixed parent task in Todoist
 - Optional: voice memo transcription via cloud API
 
