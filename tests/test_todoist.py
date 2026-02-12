@@ -54,3 +54,20 @@ def test_create_subtask_handles_invalid_response() -> None:
         create_subtask("hello", "123", "test-token", client=client)
 
     assert excinfo.value.user_message == "Todoist response invalid"
+
+
+def test_create_subtask_truncates_oversized_content() -> None:
+    oversized_content = "x" * 800
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content.decode("utf-8"))
+        assert len(body["content"]) == 500
+        assert body["content"].endswith("...")
+        return httpx.Response(200, json={"id": "1", "content": body["content"], "parent_id": "123"})
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.Client(transport=transport)
+
+    result = create_subtask(oversized_content, "123", "test-token", client=client)
+
+    assert result["id"] == "1"

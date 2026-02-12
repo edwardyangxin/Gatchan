@@ -70,6 +70,19 @@ gcloud run deploy gatchan-webhook \
   --set-env-vars TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,TODOIST_API_TOKEN=...,TODO_LATER_TASK_NAME=...
 ```
 
+### Cloud Run deploy (storage minimized)
+```bash
+SERVICE=gatchan-bot-webhook \
+REGION=us-central1 \
+IMAGE_PACKAGE=us-central1-docker.pkg.dev/PROJECT/REPO/gatchan-bot-webhook \
+KEEP=1 \
+./scripts/deploy_cloud_run.sh \
+  --allow-unauthenticated \
+  --set-env-vars TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,TODOIST_API_TOKEN=...,TODO_LATER_TASK_NAME=...
+```
+Optionally set cleanup policies before deploy by exporting `ARTIFACT_REPOSITORY` and
+`CLEANUP_POLICY_FILE` (a JSON policy file) for `gcloud artifacts repositories set-cleanup-policies`.
+
 ### Telegram webhook registration (example)
 ```bash
 curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \

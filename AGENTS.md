@@ -6,6 +6,7 @@
 - Handle errors explicitly and return user-safe messages.
 - Validate all external input (user, API, env, DB).
 - Avoid `console.log` in production code.
+- For Cloud Run storage minimization: keep only 1 revision and 1 image for each deployed service (use cleanup policies + post-deploy pruning).
 
 ## Development Mode
 Use when implementing features or fixing bugs.
@@ -13,6 +14,10 @@ Use when implementing features or fixing bugs.
 - Favor working solutions over perfect solutions.
 - Run relevant tests after changes.
 - Keep commits atomic.
+
+## Default Agent Behavior
+- Default to using the `planning-with-files` skill for task execution unless the user explicitly asks for a different flow.
+- When documentation lookup is needed, use Context7 first and prioritize official vendor/library documentation as primary sources.
 
 ## Review Mode
 Use when the user asks for a review.
@@ -47,6 +52,12 @@ Before any commit:
 ## Git Workflow
 - Commit message format: `<type>: <description>` (feat, fix, refactor, docs, test, chore, perf, ci).
 - For PRs: review full diff, write clear summary, include test plan.
+
+## Deployment Workflow
+- After every Cloud Run deploy, run post-deploy pruning immediately.
+- Target state per service: keep exactly 1 Cloud Run revision and 1 Artifact Registry image.
+- Use `scripts/prune_cloud_run_artifacts.py --service <service> --region <region> --image <artifact_package> --keep 1`.
+- Verify cleanup result after pruning (`gcloud run revisions list` and `gcloud artifacts docker images list`).
 
 ## Issue Workflow
 - Pick a backlog item from the Project board.
